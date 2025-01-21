@@ -107,7 +107,29 @@ export const handler = async (req: Request): Promise<Response> => {
                             reservas: {$each: allReservas}
                         }
                     });
-                    return new Response(JSON.stringify(updateRestaurante), {status: 200});                }
+                    return new Response(JSON.stringify(updateRestaurante), {status: 200});                
+                }
+            }
+
+            if (path === "/reservar") {
+                const reserva = await req.json();
+                if (!reserva) return new Response("Bad request", {status: 400});
+                if (!reserva.id_reserva && !reserva.id_restaurante) return new Response("Faltan argumentos", {status: 400});
+                const reservaExiste = await ReservasCollection.findOne({_id: new ObjectId(reserva.id_reserva as string), disponible: true});
+                if (!reservaExiste) return new Response("La reserva no existe o no esta disponible", {status: 404});
+                const restauranteExiste = await RestaurantesCollection.findOne({_id: new ObjectId(reserva.id_restaurante as string)});
+                if (!restauranteExiste) return new Response("El restaurante no existe", {status: 404});
+                const updateRestaurante = await RestaurantesCollection.updateOne({_id: new ObjectId(reserva.id_restaurante as string)}, {
+                    $push: {
+                        reservas: new ObjectId(reserva.id_reserva as string)
+                    }
+                })
+                const updateReserva = await ReservasCollection.updateOne({_id: new ObjectId(reserva.id_reserva as string)}, {
+                    $set: {
+                        disponible: false
+                    }
+                });
+                return new Response(JSON.stringify(updateReserva), {status: 200});
             }
         }
 
